@@ -9,8 +9,6 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-data class MethodChannelResult(val success: Boolean, val data: Any? = null)
-
 /** FlutterJsPlugin */
 class FlutterJsPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private lateinit var applicationContext: android.content.Context
