@@ -26,6 +26,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace "io.abner.flutter_js" // Tambahkan namespace di sini
     compileSdkVersion 29
 
     kotlinOptions {
@@ -40,7 +41,6 @@ android {
     //       path "CMakeLists.txt"
     //   }
     // }
-
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
