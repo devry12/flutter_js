@@ -1,42 +1,51 @@
 package io.abner.flutter_js
 
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
 
-data class MethodChannelResult(val success: Boolean, val data: Any? = null)
+class FlutterJsPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
-/** FlutterJsPlugin */
-class FlutterJsPlugin : FlutterPlugin, MethodCallHandler {
-    private var applicationContext: android.content.Context? = null
-    private var methodChannel: MethodChannel? = null
+    private lateinit var channel: MethodChannel
+    private val jsEngineMap = mutableMapOf<Int, JSEngine>()
+    private var engineIdCounter = 0
 
-    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        applicationContext = flutterPluginBinding.applicationContext
-        methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "io.abner.flutter_js")
-        methodChannel!!.setMethodCallHandler(this)
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel = MethodChannel(binding.binaryMessenger, "flutter_js")
+        channel.setMethodCallHandler(this)
     }
 
-    companion object {
-        var jsEngineMap = mutableMapOf<Int, JSEngine>()
-    }
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "createEngine" -> {
+                val engine = JSEngine(binding.applicationContext)
+                jsEngineMap[++engineIdCounter] = engine
+                result.success(engineIdCounter)
+            }
+            "evaluate" -> {
+                val jsCommand: String = call.argument<String>("command")!!
+                val engineId: Int = call.argument<Int>("engineId")!!
 
-    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-        if (call.method == "getPlatformVersion") {
-            result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else {
-            result.notImplemented()
+                jsEngineMap[engineId]?.let { engine ->
+                    try {
+                        val resultJS = engine.eval(jsCommand)
+                        result.success(resultJS)
+                    } catch (e: Exception) {
+                        result.error("FlutterJSException", e.message, null)
+                    }
+                } ?: result.error("EngineNotFound", "Engine with id $engineId not found", null)
+            }
+            "releaseEngine" -> {
+                val engineId: Int = call.argument<Int>("engineId")!!
+                jsEngineMap[engineId]?.release()
+                jsEngineMap.remove(engineId)
+                result.success(null)
+            }
+            else -> result.notImplemented()
         }
     }
 
-    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-        methodChannel?.setMethodCallHandler(null)
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        // Cleanup if necessary
     }
 }
